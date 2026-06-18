@@ -242,7 +242,7 @@ def main(config: Config):
                 best_model_state = copy.deepcopy(model.state_dict())
                 torch.save(best_model_state, f"{config.checkpoint_dir}/best_model.pth")
                 print(f"New best model saved with accuracy: {best_acc:.2f}%")
-                with open(f"{config.save_dir}/test_result.json", "w", encoding="utf-8") as f:
+                with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
                     json.dump(history, f, indent=2)
 
             avg_loss = pre_loss / config.print_step

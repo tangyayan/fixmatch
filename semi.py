@@ -23,6 +23,7 @@ def main(config:dict):
     y_pred, y_logits = trainer.predict(eval_loader)
 
 if __name__ == '__main__':
+    num_labels = 40
     config = {
         'seed': 42,
         'algorithm': 'fixmatch',
@@ -32,7 +33,7 @@ if __name__ == '__main__':
 
         # optimization configs
         'epoch': 1024,
-        'num_train_iter': 1048576,
+        'num_train_iter': 32768,
         'num_eval_iter': 5120,
         'num_log_iter': 256,
         'optim': 'SGD',
@@ -47,7 +48,7 @@ if __name__ == '__main__':
 
         # dataset configs
         'dataset': 'cifar10',
-        'num_labels': 40,
+        'num_labels': num_labels,
         'num_classes': 10,
         'img_size': 32,
         'crop_ratio': 0.875,
@@ -68,5 +69,9 @@ if __name__ == '__main__':
         'world_size': 1,
         'distributed': False,
         "num_workers": 2,
+
+        # output
+        'save_dir': './saved_models',
+        'save_name': f'fixmatch_{num_labels}',
     }
     main(config)

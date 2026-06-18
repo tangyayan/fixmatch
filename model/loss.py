@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from config import Config
 
 class FixMatchLoss(nn.Module):
@@ -11,8 +12,7 @@ class FixMatchLoss(nn.Module):
     
     def forward(self, outputs_x, targets_x, outputs_u_weak, outputs_u_strong):
         # 计算有标签数据的交叉熵损失
-        ce_loss = nn.CrossEntropyLoss()
-        loss_x = ce_loss(outputs_x, targets_x) # [B,]
+        loss_x = F.cross_entropy(outputs_x, targets_x) # [B,]
 
         # 计算无标签数据的伪标签
         pseudo_labels = torch.softmax(outputs_u_weak.detach() / self.T, dim=1) # [B, num_classes]
@@ -20,8 +20,8 @@ class FixMatchLoss(nn.Module):
         mask = max_probs.ge(self.tao).float() # [B,]
 
         # 计算无标签数据的损失
-        ce_loss = nn.CrossEntropyLoss(reduction="none")
-        loss_u = (ce_loss(outputs_u_strong, pseudo_labels) * mask).mean()
+        loss_u = F.cross_entropy(outputs_u_strong, pseudo_labels, reduction="none") # [B,]
+        loss_u = (loss_u * mask).mean()
 
         loss = loss_x + self.lambda_u * loss_u
         return loss, loss_x, loss_u
