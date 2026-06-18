@@ -168,12 +168,16 @@ def main(config: Config):
     if config.model_name == 'wideresnet':
         model = WideResNet(depth=config.depth, widen_factor=config.widen_factor, 
                            num_classes=config.num_classes, dropRate=config.dropout_rate).to(config.device)
-        ema_model = copy.deepcopy(model)
     elif config.model_name == 'cnn':
         model = SimpleCNN(num_classes=config.num_classes).to(config.device)
-        ema_model = copy.deepcopy(model)
     else:
         raise ValueError(f"Unsupported model_name: {config.model_name}")
+    
+    # ema_model init
+    ema_model = copy.deepcopy(model)
+    ema_model.eval()
+    for p in ema_model.parameters():
+        p.requires_grad = False
     
     criterion = FixMatchLoss(config)
 
@@ -238,10 +242,10 @@ def main(config: Config):
         pre_loss_u += loss_u.item()
         pre_unmask_counts += counts.cpu().numpy()
         if step % config.print_step == 0:
-            acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
+            acc = evaluate(ema_model, testloader, class_names, config.device, is_traineval=True) * 100
             if best_acc < acc:
                 best_acc = acc
-                best_model_state = copy.deepcopy(model.state_dict())
+                best_model_state = copy.deepcopy(ema_model.state_dict())
                 torch.save(best_model_state, f"{config.checkpoint_dir}/best_model.pth")
                 print(f"New best model saved with accuracy: {best_acc:.2f}%")
                 with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
@@ -272,14 +276,18 @@ def main(config: Config):
         loss.backward()
         optimizer.step()
         scheduler.step()
+        
+        with torch.no_grad():
+            for ema_p, p in zip(ema_model.parameters(), model.parameters()):
+                ema_p.data.mul_(config.ema_m).add_(p.data, alpha=1 - config.ema_m)
 
     # 保存训练曲线json
     with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2)
     print(f"训练曲线数据已保存至: {config.save_dir}/history.json")
 
-    model.load_state_dict(best_model_state)
-    result_summary = evaluate(model, testloader, class_names, config.device, save_dir=config.save_dir)
+    ema_model.load_state_dict(best_model_state)
+    result_summary = evaluate(ema_model, testloader, class_names, config.device, save_dir=config.save_dir)
 
     with open(f"{config.save_dir}/test_result.json", "w", encoding="utf-8") as f:
         json.dump(result_summary, f, indent=2)

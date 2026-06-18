@@ -10,6 +10,7 @@ class Config():
         self.depth = 28
         self.widen_factor = 2
         self.dropout_rate = 0.0
+        self.ema_m = 0.999
 
         # train
         self.num_steps = 2000
