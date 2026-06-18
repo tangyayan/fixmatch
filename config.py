@@ -14,6 +14,7 @@ class Config():
         # train
         self.num_steps = 2000
         self.batch_size = 64
+        self.eval_batch_size = 256
         self.learning_rate = 0.03
         self.momentum = 0.9
         self.weight_decay = 5e-4

@@ -100,9 +100,7 @@ def evaluate(model, dataloader, class_names, device, save_dir=None, is_traineval
     }
     return result_summary
 
-if __name__ == '__main__':
-    config = Config()
-
+def main(config: Config):
     set_seed(config.seed)
 
     class_names =  ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
@@ -165,13 +163,15 @@ if __name__ == '__main__':
 
     labeled_trainloader = torch.utils.data.DataLoader(labeled_trainset, batch_size=config.batch_size, shuffle=True)
     unlabeled_trainloader = torch.utils.data.DataLoader(unlabeled_trainset, batch_size=config.batch_size*config.mu, shuffle=True)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False, collate_fn=collate_fn)
 
     if config.model_name == 'wideresnet':
         model = WideResNet(depth=config.depth, widen_factor=config.widen_factor, 
                            num_classes=config.num_classes, dropRate=config.dropout_rate).to(config.device)
+        ema_model = copy.deepcopy(model)
     elif config.model_name == 'cnn':
         model = SimpleCNN(num_classes=config.num_classes).to(config.device)
+        ema_model = copy.deepcopy(model)
     else:
         raise ValueError(f"Unsupported model_name: {config.model_name}")
     
@@ -223,9 +223,13 @@ if __name__ == '__main__':
         uX_week, uX_strong = uX_week.to(config.device), uX_strong.to(config.device)
 
         model.train()
-        outputs_x = model(X_train)
-        outputs_u_weak = model(uX_week)
-        outputs_u_strong = model(uX_strong)
+        # outputs_x = model(X_train)
+        # outputs_u_weak = model(uX_week)
+        # outputs_u_strong = model(uX_strong)
+        input_id = torch.cat([X_train, uX_week, uX_strong], dim=0) # BN 中分别传入可能导致计算混乱
+        outputs = model(input_id)
+        outputs_x = outputs[:len(X_train)]
+        outputs_u_weak, outputs_u_strong = outputs[len(X_train):].chunk(2)
         loss, loss_x, loss_u = criterion(outputs_x, y_train, outputs_u_weak, outputs_u_strong)
 
         pre_loss += loss.item()
@@ -238,6 +242,8 @@ if __name__ == '__main__':
                 best_model_state = copy.deepcopy(model.state_dict())
                 torch.save(best_model_state, f"{config.checkpoint_dir}/best_model.pth")
                 print(f"New best model saved with accuracy: {best_acc:.2f}%")
+                with open(f"{config.save_dir}/test_result.json", "w", encoding="utf-8") as f:
+                    json.dump(history, f, indent=2)
 
             avg_loss = pre_loss / config.print_step
             avg_loss_x = pre_loss_x / config.print_step
@@ -276,3 +282,7 @@ if __name__ == '__main__':
 
     plot_curves(history, save_path=f"{config.save_dir}/training_curves.png")
     print(f"训练曲线已保存至: {config.save_dir}/training_curves.png")
+
+if __name__ == '__main__':
+    config = Config()
+    main(config)
