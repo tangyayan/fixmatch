@@ -19,9 +19,13 @@ class FixMatchLoss(nn.Module):
         max_probs, pseudo_labels = torch.max(pseudo_labels, dim=1)
         mask = max_probs.ge(self.tao).float() # [B,]
 
+        # debug
+        valid_pseudo = pseudo_labels[mask.bool()]
+        counts = torch.bincount(valid_pseudo, minlength=10) # [num_classes,
+
         # 计算无标签数据的损失
         loss_u = F.cross_entropy(outputs_u_strong, pseudo_labels, reduction="none") # [B,]
         loss_u = (loss_u * mask).mean()
 
         loss = loss_x + self.lambda_u * loss_u
-        return loss, loss_x, loss_u
+        return loss, loss_x, loss_u, counts

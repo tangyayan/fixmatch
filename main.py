@@ -206,6 +206,7 @@ def main(config: Config):
     pre_loss = 0
     pre_loss_x = 0
     pre_loss_u = 0
+    pre_unmask_counts = np.zeros(config.num_classes, dtype=int)
 
     label_iter = cycle(labeled_trainloader)
     unlabel_iter = cycle(unlabeled_trainloader)
@@ -230,11 +231,12 @@ def main(config: Config):
         outputs = model(input_id)
         outputs_x = outputs[:len(X_train)]
         outputs_u_weak, outputs_u_strong = outputs[len(X_train):].chunk(2)
-        loss, loss_x, loss_u = criterion(outputs_x, y_train, outputs_u_weak, outputs_u_strong)
+        loss, loss_x, loss_u, counts = criterion(outputs_x, y_train, outputs_u_weak, outputs_u_strong)
 
         pre_loss += loss.item()
         pre_loss_x += loss_x.item()
         pre_loss_u += loss_u.item()
+        pre_unmask_counts += counts.cpu().numpy()
         if step % config.print_step == 0:
             acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
             if best_acc < acc:
@@ -252,6 +254,7 @@ def main(config: Config):
             print(f"Step [{step}/{config.num_steps}], Loss: {avg_loss:.4f}, "
                 f"Loss_x: {avg_loss_x:.4f}, Loss_u: {avg_loss_u:.4f}, "
                 f"Test Accuracy: {acc:.2f}%, Time: {time.time() - start_time:.2f}s")
+            print(f"Unmask counts : {pre_unmask_counts}")
 
             # 记录历史
             history["step"].append(step)
@@ -263,6 +266,7 @@ def main(config: Config):
             pre_loss = 0
             pre_loss_x = 0
             pre_loss_u = 0
+            pre_unmask_counts = np.zeros(config.num_classes, dtype=int)
 
         optimizer.zero_grad()
         loss.backward()
