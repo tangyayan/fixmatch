@@ -100,6 +100,18 @@ def evaluate(model, dataloader, class_names, device, save_dir=None, is_traineval
     }
     return result_summary
 
+
+def update_ema_model(ema_model, model, ema_m):
+    with torch.no_grad():
+        model_params = dict(model.named_parameters())
+        for name, ema_param in ema_model.named_parameters():
+            ema_param.data.mul_(ema_m).add_(model_params[name].data, alpha=1 - ema_m)
+
+        model_buffers = dict(model.named_buffers())
+        for name, ema_buffer in ema_model.named_buffers():
+            ema_buffer.copy_(model_buffers[name])
+
+
 def main(config: Config):
     set_seed(config.seed)
 
@@ -277,9 +289,7 @@ def main(config: Config):
         optimizer.step()
         scheduler.step()
         
-        with torch.no_grad():
-            for ema_p, p in zip(ema_model.parameters(), model.parameters()):
-                ema_p.data.mul_(config.ema_m).add_(p.data, alpha=1 - config.ema_m)
+        update_ema_model(ema_model, model, config.ema_m)
 
     # 保存训练曲线json
     with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
