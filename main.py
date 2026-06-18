@@ -107,7 +107,7 @@ def update_ema_model(ema_model, model, ema_m):
         for name, ema_param in ema_model.named_parameters():
             ema_param.data.mul_(ema_m).add_(model_params[name].data, alpha=1 - ema_m)
 
-        model_buffers = dict(model.named_buffers())
+        model_buffers = dict(model.named_buffers()) # BN buffers
         for name, ema_buffer in ema_model.named_buffers():
             ema_buffer.copy_(model_buffers[name])
 
@@ -186,10 +186,10 @@ def main(config: Config):
         raise ValueError(f"Unsupported model_name: {config.model_name}")
     
     # ema_model init
-    ema_model = copy.deepcopy(model)
-    ema_model.eval()
-    for p in ema_model.parameters():
-        p.requires_grad = False
+    # ema_model = copy.deepcopy(model)
+    # ema_model.eval()
+    # for p in ema_model.parameters():
+    #     p.requires_grad = False
     
     criterion = FixMatchLoss(config)
 
@@ -254,10 +254,10 @@ def main(config: Config):
         pre_loss_u += loss_u.item()
         pre_unmask_counts += counts.cpu().numpy()
         if step % config.print_step == 0:
-            acc = evaluate(ema_model, testloader, class_names, config.device, is_traineval=True) * 100
+            acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
             if best_acc < acc:
                 best_acc = acc
-                best_model_state = copy.deepcopy(ema_model.state_dict())
+                best_model_state = copy.deepcopy(model.state_dict())
                 torch.save(best_model_state, f"{config.checkpoint_dir}/best_model.pth")
                 print(f"New best model saved with accuracy: {best_acc:.2f}%")
                 with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
@@ -289,15 +289,15 @@ def main(config: Config):
         optimizer.step()
         scheduler.step()
         
-        update_ema_model(ema_model, model, config.ema_m)
+        update_ema_model(model, model, config.ema_m)
 
     # 保存训练曲线json
     with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2)
     print(f"训练曲线数据已保存至: {config.save_dir}/history.json")
 
-    ema_model.load_state_dict(best_model_state)
-    result_summary = evaluate(ema_model, testloader, class_names, config.device, save_dir=config.save_dir)
+    model.load_state_dict(best_model_state)
+    result_summary = evaluate(model, testloader, class_names, config.device, save_dir=config.save_dir)
 
     with open(f"{config.save_dir}/test_result.json", "w", encoding="utf-8") as f:
         json.dump(result_summary, f, indent=2)
