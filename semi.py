@@ -2,21 +2,25 @@ import semilearn
 from semilearn import get_dataset, get_data_loader, get_net_builder, get_algorithm, get_config, Trainer
 
 config = {
+    'seed': 42,
     'algorithm': 'fixmatch',
-    'net': 'vit_tiny_patch2_32',
-    'use_pretrain': True,
-    'pretrain_path': 'https://github.com/microsoft/Semi-supervised-learning/releases/download/v.0.0.0/vit_tiny_patch2_32_mlp_im_1k_32.pth',
+    'net': 'wrn_28_2',
+    'use_pretrain': False,
+    # 'pretrain_path': 'https://github.com/microsoft/Semi-supervised-learning/releases/download/v.0.0.0/vit_tiny_patch2_32_mlp_im_1k_32.pth',
 
     # optimization configs
-    'epoch': 1,
-    'num_train_iter': 5000,
-    'num_eval_iter': 500,
-    'num_log_iter': 50,
-    'optim': 'AdamW',
-    'lr': 5e-4,
-    'layer_decay': 0.5,
-    'batch_size': 16,
-    'eval_batch_size': 16,
+    'epoch': 1024,
+    'num_train_iter': 1048576,
+    'num_eval_iter': 5120,
+    'num_log_iter': 256,
+    'optim': 'SGD',
+    'lr': 0.03,
+    'momentum': 0.9,
+    'weight_decay': 5e-4,
+    'layer_decay': 1.0,
+    'batch_size': 64,
+    'eval_batch_size': 256,
+    'clip': 0.0,
 
 
     # dataset configs
@@ -25,13 +29,17 @@ config = {
     'num_classes': 10,
     'img_size': 32,
     'crop_ratio': 0.875,
-    'data_dir': './data',
+    'data_dir': './dataset',
     'ulb_samples_per_class': None,
 
     # algorithm specific configs
     'hard_label': True,
-    'uratio': 2,
+    'T': 0.5,
+    'p_cutoff': 0.95,
+    'uratio': 7,
     'ulb_loss_ratio': 1.0,
+    'ema_m': 0.999,
+    'train_sampler': 'RandomSampler',
 
     # device configs
     'gpu': 0,
