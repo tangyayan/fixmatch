@@ -11,6 +11,7 @@ class Config():
         self.widen_factor = 2
         self.dropout_rate = 0.0
         self.ema_m = 0.999
+        self.use_ema = False
 
         # train
         self.num_steps = 2000

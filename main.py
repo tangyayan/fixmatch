@@ -186,10 +186,11 @@ def main(config: Config):
         raise ValueError(f"Unsupported model_name: {config.model_name}")
     
     # ema_model init
-    # ema_model = copy.deepcopy(model)
-    # ema_model.eval()
-    # for p in ema_model.parameters():
-    #     p.requires_grad = False
+    if config.use_ema:
+        ema_model = copy.deepcopy(model)
+        ema_model.eval()
+        for p in ema_model.parameters():
+            p.requires_grad = False
     
     criterion = FixMatchLoss(config)
 
@@ -254,12 +255,27 @@ def main(config: Config):
         pre_loss_u += loss_u.item()
         pre_unmask_counts += counts.cpu().numpy()
         if step % config.print_step == 0:
-            acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
+            # 记录历史
+            history["step"].append(step)
+            history["loss"].append(avg_loss)
+            history["loss_x"].append(avg_loss_x)
+            history["loss_u"].append(avg_loss_u)
+            history["test_acc"].append(acc)
+
+            if config.use_ema:
+                acc = evaluate(ema_model, testloader, class_names, config.device, is_traineval=True) * 100            
+            else:
+                acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
+
             if best_acc < acc:
                 best_acc = acc
-                best_model_state = copy.deepcopy(model.state_dict())
+                if config.use_ema:
+                    best_model_state = copy.deepcopy(ema_model.state_dict())
+                else:
+                    best_model_state = copy.deepcopy(model.state_dict())
                 torch.save(best_model_state, f"{config.checkpoint_dir}/best_model.pth")
                 print(f"New best model saved with accuracy: {best_acc:.2f}%")
+
                 with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
                     json.dump(history, f, indent=2)
 
@@ -272,13 +288,6 @@ def main(config: Config):
                 f"Test Accuracy: {acc:.2f}%, Time: {time.time() - start_time:.2f}s")
             print(f"Unmask counts : {pre_unmask_counts}")
 
-            # 记录历史
-            history["step"].append(step)
-            history["loss"].append(avg_loss)
-            history["loss_x"].append(avg_loss_x)
-            history["loss_u"].append(avg_loss_u)
-            history["test_acc"].append(acc)
-
             pre_loss = 0
             pre_loss_x = 0
             pre_loss_u = 0
@@ -289,15 +298,20 @@ def main(config: Config):
         optimizer.step()
         scheduler.step()
         
-        update_ema_model(model, model, config.ema_m)
+        if config.use_ema:
+            update_ema_model(ema_model, model, config.ema_m)
 
     # 保存训练曲线json
     with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2)
     print(f"训练曲线数据已保存至: {config.save_dir}/history.json")
 
-    model.load_state_dict(best_model_state)
-    result_summary = evaluate(model, testloader, class_names, config.device, save_dir=config.save_dir)
+    if config.use_ema:
+        ema_model.load_state_dict(best_model_state)
+        result_summary = evaluate(ema_model, testloader, class_names, config.device, save_dir=config.save_dir)
+    else:
+        model.load_state_dict(best_model_state)
+        result_summary = evaluate(model, testloader, class_names, config.device, save_dir=config.save_dir)
 
     with open(f"{config.save_dir}/test_result.json", "w", encoding="utf-8") as f:
         json.dump(result_summary, f, indent=2)
