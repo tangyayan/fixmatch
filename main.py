@@ -20,17 +20,6 @@ from utils import plot_curves, set_seed
 cifar10_mean = (0.4914, 0.4822, 0.4465)
 cifar10_std = (0.2471, 0.2435, 0.2616)
 
-def collate_fn(batch):
-    X = torch.stack([
-        transforms.ToTensor()(item[0])
-        for item in batch
-    ])
-    y = torch.tensor(
-        [item[1] for item in batch],
-        dtype=torch.long
-    )
-    return X, y
-
 class LabeledDataset(torch.utils.data.Dataset):
     def __init__(self, dataset, transform):
         self.dataset = dataset
@@ -183,7 +172,7 @@ def main(config: Config):
 
     labeled_trainloader = torch.utils.data.DataLoader(labeled_trainset, batch_size=config.batch_size, shuffle=True)
     unlabeled_trainloader = torch.utils.data.DataLoader(unlabeled_trainset, batch_size=config.batch_size*config.mu, shuffle=True)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False, collate_fn=collate_fn)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False)
 
     if config.model_name == 'wideresnet':
         model = WideResNet(depth=config.depth, widen_factor=config.widen_factor, 
