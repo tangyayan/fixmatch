@@ -138,18 +138,14 @@ def main(config: Config):
     # 弱强增强
     weak_transform = transforms.Compose([
         transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomCrop( # 随机裁剪
-            32,
-            padding=4,
-            padding_mode="reflect"
-        ),
+        transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
         transforms.ToTensor(),
         transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
     ])
     if config.augment_type == 'randaugment':
         strong_transform = transforms.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
 
             transforms.RandAugment(num_ops=2, magnitude=10),
             transforms.ToTensor(),
