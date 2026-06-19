@@ -262,8 +262,8 @@ def main(config: Config):
 
             avg_loss = pre_loss / config.print_step
             avg_loss_x = pre_loss_x / config.print_step
-            avg_loss_u = pre_loss_u / config.print_stepa
-            
+            avg_loss_u = pre_loss_u / config.print_step
+
             # 记录历史
             history["step"].append(step)
             history["loss"].append(avg_loss)
