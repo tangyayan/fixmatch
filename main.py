@@ -118,9 +118,15 @@ def update_ema_model(ema_model, model, ema_m):
 def main(config: Config):
     set_seed(config.seed)
 
+    # 测试集归一化
+    test_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
+    ])
+
     class_names =  ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
     trainset = torchvision.datasets.CIFAR10(root='./dataset', train=True, download=True)
-    testset = torchvision.datasets.CIFAR10(root='./dataset', train=False, download=True)
+    testset = torchvision.datasets.CIFAR10(root='./dataset', train=False, download=True, transform=test_transform)
 
     # 去标签
     labels = np.array(trainset.targets)
