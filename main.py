@@ -17,6 +17,9 @@ import json
 import os
 from utils import plot_curves, set_seed
 
+cifar10_mean = (0.4914, 0.4822, 0.4465)
+cifar10_std = (0.2471, 0.2435, 0.2616)
+
 def collate_fn(batch):
     X = torch.stack([
         transforms.ToTensor()(item[0])
@@ -140,7 +143,8 @@ def main(config: Config):
             padding=4,
             padding_mode="reflect"
         ),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
     ])
     if config.augment_type == 'randaugment':
         strong_transform = transforms.Compose([
@@ -149,7 +153,8 @@ def main(config: Config):
 
             transforms.RandAugment(num_ops=2, magnitude=10),
             transforms.ToTensor(),
-            transforms.RandomErasing(p=1.0, scale=(0.02, 0.2)) # cutout
+            transforms.RandomErasing(p=1.0, scale=(0.02, 0.2)), # cutout
+            transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
         ])
     else:
         pass
