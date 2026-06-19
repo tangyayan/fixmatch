@@ -196,7 +196,8 @@ def main(config: Config):
 
     if config.optimizer == 'sgd':
         optimizer = SGD(
-            model.parameters(), lr=config.learning_rate, momentum=config.momentum, weight_decay=config.weight_decay)
+            model.parameters(), lr=config.learning_rate, momentum=config.momentum, weight_decay=config.weight_decay,
+            nesterov=config.nesterov)
     else:
         optimizer = Adam(
             model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)

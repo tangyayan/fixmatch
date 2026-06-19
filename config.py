@@ -21,6 +21,7 @@ class Config():
         self.momentum = 0.9
         self.weight_decay = 5e-4
         self.optimizer = 'sgd'
+        self.nesterov = True
         self.schedule = {
             'scheduler': 'cosine',
             # 'step_size': 30, 'gamma': 0.1,
