@@ -154,12 +154,13 @@ def main(config: Config):
             transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
 
             transforms.RandAugment(num_ops=2, magnitude=10),
-            transforms.ToTensor(),
-            transforms.RandomErasing(p=1.0, scale=(0.02, 0.2)), # cutout
+            transforms.ToTensor(), # [0,1]
+            transforms.RandomErasing(p=1.0, scale=(0.02, 0.2), value=0.5),
             transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
         ])
     else:
         pass
+    # import PIL.Image as Image
     # show_data = trainset.data[0]
     # week_data = weak_transform(Image.fromarray(show_data)).permute(1, 2, 0).numpy()
     # strong_data = strong_transform(Image.fromarray(show_data)).permute(1, 2, 0).numpy()
