@@ -255,17 +255,21 @@ def main(config: Config):
         pre_loss_u += loss_u.item()
         pre_unmask_counts += counts.cpu().numpy()
         if step % config.print_step == 0:
+            if config.use_ema:
+                acc = evaluate(ema_model, testloader, class_names, config.device, is_traineval=True) * 100            
+            else:
+                acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
+
+            avg_loss = pre_loss / config.print_step
+            avg_loss_x = pre_loss_x / config.print_step
+            avg_loss_u = pre_loss_u / config.print_stepa
+            
             # 记录历史
             history["step"].append(step)
             history["loss"].append(avg_loss)
             history["loss_x"].append(avg_loss_x)
             history["loss_u"].append(avg_loss_u)
             history["test_acc"].append(acc)
-
-            if config.use_ema:
-                acc = evaluate(ema_model, testloader, class_names, config.device, is_traineval=True) * 100            
-            else:
-                acc = evaluate(model, testloader, class_names, config.device, is_traineval=True) * 100
 
             if best_acc < acc:
                 best_acc = acc
@@ -278,10 +282,6 @@ def main(config: Config):
 
                 with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
                     json.dump(history, f, indent=2)
-
-            avg_loss = pre_loss / config.print_step
-            avg_loss_x = pre_loss_x / config.print_step
-            avg_loss_u = pre_loss_u / config.print_step
 
             print(f"Step [{step}/{config.num_steps}], Loss: {avg_loss:.4f}, "
                 f"Loss_x: {avg_loss_x:.4f}, Loss_u: {avg_loss_u:.4f}, "
