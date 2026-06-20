@@ -9,6 +9,12 @@ class FixMatchLoss(nn.Module):
         self.lambda_u = config.lambda_u
         self.tao = config.tao
         self.T = config.T
+
+        # DA
+        self.use_da = config.use_da
+        self.real_dist = torch.ones(config.num_classes) / config.num_classes
+        self.running_dist = self.real_dist.clone()
+        self.running_m = 0.999
     
     def forward(self, outputs_x, targets_x, outputs_u_weak, outputs_u_strong):
         # 计算有标签数据的交叉熵损失
@@ -16,6 +22,13 @@ class FixMatchLoss(nn.Module):
 
         # 计算无标签数据的伪标签
         pseudo_labels = torch.softmax(outputs_u_weak.detach() / self.T, dim=1) # [B, num_classes]
+        if self.use_da:
+            batch_dist = pseudo_labels.mean(dim=0) # [num_classes,]
+            self.running_dist = self.running_m * self.running_dist + (1 - self.running_m) * batch_dist
+
+            adjust_weights = self.real_dist / (self.running_dist + 1e-6) # [num_classes,]
+            pseudo_labels = pseudo_labels * adjust_weights.unsqueeze(0) # [B, num_classes]
+            pseudo_labels = pseudo_labels / pseudo_labels.sum(dim=1, keepdim=True) # [B, num_classes]
         max_probs, pseudo_labels = torch.max(pseudo_labels, dim=1)
         mask = max_probs.ge(self.tao).float() # [B,]
 

@@ -31,6 +31,7 @@ class Config():
         self.lambda_u = 1.0
         self.tao = 0.95
         self.T = 1
+        self.use_da = False
 
         # dataset
         self.num_classes = 10
