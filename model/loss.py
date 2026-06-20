@@ -14,6 +14,8 @@ class FixMatchLoss(nn.Module):
         self.use_da = config.use_da
         self.real_dist = torch.ones(config.num_classes) / config.num_classes
         self.running_dist = self.real_dist.clone()
+        self.real_dist = self.real_dist.to(config.device)
+        self.running_dist = self.running_dist.to(config.device)
         self.running_m = 0.999
     
     def forward(self, outputs_x, targets_x, outputs_u_weak, outputs_u_strong):
