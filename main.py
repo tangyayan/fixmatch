@@ -15,7 +15,7 @@ import time
 import copy
 import json
 import os
-from utils import plot_curves, set_seed
+from utils import plot_curves, set_seed, interleave, de_interleave
 
 cifar10_mean = (0.4914, 0.4822, 0.4465)
 cifar10_std = (0.2471, 0.2435, 0.2616)
@@ -242,8 +242,10 @@ def main(config: Config):
         # outputs_x = model(X_train)
         # outputs_u_weak = model(uX_week)
         # outputs_u_strong = model(uX_strong)
-        input_id = torch.cat([X_train, uX_week, uX_strong], dim=0) # BN 中分别传入可能导致计算混乱
+        input_id = interleave(
+                torch.cat((X_train, uX_week, uX_strong)), 2*config.mu+1).to(config.device) # BN 中分别传入可能导致计算混乱
         outputs = model(input_id)
+        outpus = de_interleave(outputs, 2*config.mu+1)
         outputs_x = outputs[:len(X_train)]
         outputs_u_weak, outputs_u_strong = outputs[len(X_train):].chunk(2)
         loss, loss_x, loss_u, counts = criterion(outputs_x, y_train, outputs_u_weak, outputs_u_strong)
