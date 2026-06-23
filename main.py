@@ -2,6 +2,7 @@ import torchvision
 import torchvision.transforms as transforms
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, roc_curve, auc
 import torch
+from torch.utils.data import RandomSampler
 import numpy as np
 import matplotlib.pyplot as plt
 from config import Config
@@ -170,8 +171,12 @@ def main(config: Config):
     unlabeled_trainset = torch.utils.data.Subset(trainset, unlabeled_idx)
     unlabeled_trainset = UnlabeledDataset(unlabeled_trainset, weak_transform=weak_transform, strong_transform=strong_transform)
 
-    labeled_trainloader = torch.utils.data.DataLoader(labeled_trainset, batch_size=config.batch_size, shuffle=True)
-    unlabeled_trainloader = torch.utils.data.DataLoader(unlabeled_trainset, batch_size=config.batch_size*config.mu, shuffle=True)
+    labeled_trainloader = torch.utils.data.DataLoader(
+        labeled_trainset, batch_size=config.batch_size, shuffle=True, 
+        drop_last=True, sampler=RandomSampler(labeled_trainset)) # 不足的batch丢弃
+    unlabeled_trainloader = torch.utils.data.DataLoader(
+        unlabeled_trainset, batch_size=config.batch_size*config.mu, shuffle=True,
+        drop_last=True, sampler=RandomSampler(unlabeled_trainset))
     testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False)
 
     if config.model_name == 'wideresnet':
@@ -223,8 +228,8 @@ def main(config: Config):
     pre_loss_u = 0
     pre_unmask_counts = np.zeros(config.num_classes, dtype=int)
 
-    label_iter = cycle(labeled_trainloader)
-    unlabel_iter = cycle(unlabeled_trainloader)
+    label_iter = iter(labeled_trainloader)
+    unlabel_iter = iter(unlabeled_trainloader)
 
     os.makedirs(config.save_dir, exist_ok=True)
     os.makedirs(config.checkpoint_dir, exist_ok=True)
@@ -232,10 +237,17 @@ def main(config: Config):
     for step in range(1, config.num_steps + 1):
         start_time = time.time()
         
-        X_train, y_train = next(label_iter)
+        try:
+            X_train, y_train = next(label_iter)
+        except StopIteration:
+            label_iter = iter(labeled_trainloader)
+            X_train, y_train = next(label_iter)
         X_train, y_train = X_train.to(config.device), y_train.to(config.device)
-        
-        uX_week, uX_strong = next(unlabel_iter)
+        try:
+            uX_week, uX_strong = next(unlabel_iter)
+        except StopIteration:
+            unlabel_iter = iter(unlabeled_trainloader)
+            uX_week, uX_strong = next(unlabel_iter)
         uX_week, uX_strong = uX_week.to(config.device), uX_strong.to(config.device)
 
         model.train()
@@ -245,7 +257,7 @@ def main(config: Config):
         input_id = interleave(
                 torch.cat((X_train, uX_week, uX_strong)), 2*config.mu+1).to(config.device) # BN 中分别传入可能导致计算混乱
         outputs = model(input_id)
-        outpus = de_interleave(outputs, 2*config.mu+1)
+        outputs = de_interleave(outputs, 2*config.mu+1)
         outputs_x = outputs[:len(X_train)]
         outputs_u_weak, outputs_u_strong = outputs[len(X_train):].chunk(2)
         loss, loss_x, loss_u, counts = criterion(outputs_x, y_train, outputs_u_weak, outputs_u_strong)
