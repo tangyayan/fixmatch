@@ -11,7 +11,6 @@ from model.simple_cnn import SimpleCNN
 from model.loss import FixMatchLoss
 from torch.optim import lr_scheduler
 from torch.optim import Adam, SGD
-from itertools import cycle
 import time
 import copy
 import json
@@ -172,11 +171,21 @@ def main(config: Config):
     unlabeled_trainset = UnlabeledDataset(unlabeled_trainset, weak_transform=weak_transform, strong_transform=strong_transform)
 
     labeled_trainloader = torch.utils.data.DataLoader(
-        labeled_trainset, batch_size=config.batch_size, 
-        drop_last=True, sampler=RandomSampler(labeled_trainset)) # 不足的batch丢弃
+        labeled_trainset, batch_size=config.batch_size,
+        drop_last=True,
+        sampler=RandomSampler(
+            labeled_trainset,
+            replacement=True,
+            num_samples=config.num_steps * config.batch_size,
+        )) # 不足的batch丢弃
     unlabeled_trainloader = torch.utils.data.DataLoader(
         unlabeled_trainset, batch_size=config.batch_size*config.mu,
-        drop_last=True, sampler=RandomSampler(unlabeled_trainset))
+        drop_last=True,
+        sampler=RandomSampler(
+            unlabeled_trainset,
+            replacement=True,
+            num_samples=config.num_steps * config.batch_size * config.mu,
+        ))
     testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False)
 
     if config.model_name == 'wideresnet':
@@ -254,8 +263,10 @@ def main(config: Config):
         # outputs_x = model(X_train)
         # outputs_u_weak = model(uX_week)
         # outputs_u_strong = model(uX_strong)
+        # Run labeled, weak-unlabeled, and strong-unlabeled inputs together so BN
+        # sees the same mixed distribution as FixMatch expects.
         input_id = interleave(
-                torch.cat((X_train, uX_week, uX_strong)), 2*config.mu+1).to(config.device) # BN 中分别传入可能导致计算混乱
+                torch.cat((X_train, uX_week, uX_strong)), 2*config.mu+1).to(config.device)
         outputs = model(input_id)
         outputs = de_interleave(outputs, 2*config.mu+1)
         outputs_x = outputs[:len(X_train)]
@@ -305,12 +316,11 @@ def main(config: Config):
             pre_loss_u = 0
             pre_unmask_counts = np.zeros(config.num_classes, dtype=int)
 
-            if config.use_ema:
-                update_ema_model(ema_model, model, config.ema_m)
-
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if config.use_ema:
+            update_ema_model(ema_model, model, config.ema_m)
         scheduler.step()
 
     # 保存训练曲线json

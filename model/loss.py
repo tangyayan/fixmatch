@@ -40,7 +40,7 @@ class FixMatchLoss(nn.Module):
 
         # 计算无标签数据的损失
         loss_u = F.cross_entropy(outputs_u_strong, pseudo_labels, reduction="none") # [B,]
-        loss_u = (loss_u * mask).sum() / (mask.sum() + 1e-6)
+        loss_u = (loss_u * mask).mean()
 
         loss = loss_x + self.lambda_u * loss_u
         return loss, loss_x, loss_u, counts
