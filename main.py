@@ -172,10 +172,10 @@ def main(config: Config):
     unlabeled_trainset = UnlabeledDataset(unlabeled_trainset, weak_transform=weak_transform, strong_transform=strong_transform)
 
     labeled_trainloader = torch.utils.data.DataLoader(
-        labeled_trainset, batch_size=config.batch_size, shuffle=True, 
+        labeled_trainset, batch_size=config.batch_size, 
         drop_last=True, sampler=RandomSampler(labeled_trainset)) # 不足的batch丢弃
     unlabeled_trainloader = torch.utils.data.DataLoader(
-        unlabeled_trainset, batch_size=config.batch_size*config.mu, shuffle=True,
+        unlabeled_trainset, batch_size=config.batch_size*config.mu,
         drop_last=True, sampler=RandomSampler(unlabeled_trainset))
     testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False)
 
