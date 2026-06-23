@@ -305,13 +305,13 @@ def main(config: Config):
             pre_loss_u = 0
             pre_unmask_counts = np.zeros(config.num_classes, dtype=int)
 
+            if config.use_ema:
+                update_ema_model(ema_model, model, config.ema_m)
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         scheduler.step()
-        
-        if config.use_ema:
-            update_ema_model(ema_model, model, config.ema_m)
 
     # 保存训练曲线json
     with open(f"{config.save_dir}/history.json", "w", encoding="utf-8") as f:
