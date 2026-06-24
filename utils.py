@@ -42,3 +42,24 @@ def interleave(x, size):
 def de_interleave(x, size):
     s = list(x.shape)
     return x.reshape([size, -1] + s[1:]).transpose(0, 1).reshape([-1] + s[1:])
+
+import math
+from torch.utils.data import Sampler
+
+class RandomSampler(Sampler):
+    def __init__(self, data_source, num_samples=None, generator=None):
+        self.data_source = data_source
+        self.n = len(data_source)
+        self.num_samples = num_samples if num_samples is not None else self.n
+        self.generator = generator
+
+    def __iter__(self):
+        num_epochs = math.ceil(self.num_samples / self.n)
+        indices = []
+        for _ in range(num_epochs):
+            indices.append(torch.randperm(self.n, generator=self.generator))
+        indices = torch.cat(indices)[: self.num_samples]
+        return iter(indices.tolist())
+
+    def __len__(self):
+        return self.num_samples

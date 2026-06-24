@@ -2,7 +2,6 @@ import torchvision
 import torchvision.transforms as transforms
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, roc_curve, auc
 import torch
-from torch.utils.data import RandomSampler
 import numpy as np
 import matplotlib.pyplot as plt
 from config import Config
@@ -15,7 +14,7 @@ import time
 import copy
 import json
 import os
-from utils import plot_curves, set_seed, interleave, de_interleave
+from utils import plot_curves, set_seed, interleave, de_interleave, RandomSampler
 
 cifar10_mean = (0.4914, 0.4822, 0.4465)
 cifar10_std = (0.2471, 0.2435, 0.2616)
@@ -167,15 +166,14 @@ def main(config: Config):
 
     labeled_trainset = torch.utils.data.Subset(trainset, labeled_idx)
     labeled_trainset = LabeledDataset(labeled_trainset, transform=weak_transform)
-    unlabeled_trainset = torch.utils.data.Subset(trainset, unlabeled_idx)
-    unlabeled_trainset = UnlabeledDataset(unlabeled_trainset, weak_transform=weak_transform, strong_transform=strong_transform)
+    # unlabeled_trainset = torch.utils.data.Subset(trainset, unlabeled_idx)
+    unlabeled_trainset = UnlabeledDataset(trainset, weak_transform=weak_transform, strong_transform=strong_transform)
 
     labeled_trainloader = torch.utils.data.DataLoader(
         labeled_trainset, batch_size=config.batch_size,
-        drop_last=True,
+        drop_last=True, num_workers=2,
         sampler=RandomSampler(
             labeled_trainset,
-            replacement=True,
             num_samples=config.num_steps * config.batch_size,
         )) # 不足的batch丢弃
     unlabeled_trainloader = torch.utils.data.DataLoader(
@@ -183,7 +181,6 @@ def main(config: Config):
         drop_last=True,
         sampler=RandomSampler(
             unlabeled_trainset,
-            replacement=True,
             num_samples=config.num_steps * config.batch_size * config.mu,
         ))
     testloader = torch.utils.data.DataLoader(testset, batch_size=config.eval_batch_size, shuffle=False)
@@ -250,14 +247,17 @@ def main(config: Config):
             X_train, y_train = next(label_iter)
         except StopIteration:
             label_iter = iter(labeled_trainloader)
+            print("label_reset")
             X_train, y_train = next(label_iter)
         X_train, y_train = X_train.to(config.device), y_train.to(config.device)
         try:
             uX_week, uX_strong = next(unlabel_iter)
         except StopIteration:
             unlabel_iter = iter(unlabeled_trainloader)
+            print("unlabel_reset")
             uX_week, uX_strong = next(unlabel_iter)
         uX_week, uX_strong = uX_week.to(config.device), uX_strong.to(config.device)
+        mid_time = time.time()
 
         model.train()
         # outputs_x = model(X_train)
@@ -308,7 +308,7 @@ def main(config: Config):
 
             print(f"Step [{step}/{config.num_steps}], Loss: {avg_loss:.4f}, "
                 f"Loss_x: {avg_loss_x:.4f}, Loss_u: {avg_loss_u:.4f}, "
-                f"Test Accuracy: {acc:.2f}%, Time: {time.time() - start_time:.2f}s")
+                f"Test Accuracy: {acc:.2f}%, Time: {time.time() - start_time:.2f}s, Data Time: {mid_time-start_time:.2f}s")
             print(f"Unmask counts : {pre_unmask_counts}")
 
             pre_loss = 0
